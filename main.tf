@@ -23,13 +23,13 @@ variable "resource_group" {
 
 variable "location" {
   type = string
-  default = "eastus"
+  default = "southeastasia"
 }
  
 
 resource "azurerm_cosmosdb_account" "db" {
   name                = "ine-cosmos-db-data-${random_id.randomId.dec}"
-  location            = "eastus"
+  location            = "southeastasia"
   resource_group_name = var.resource_group
   offer_type          = "Standard"
   kind                = "GlobalDocumentDB"
@@ -45,7 +45,7 @@ resource "azurerm_cosmosdb_account" "db" {
   }
 
   geo_location {
-    location          = "eastus"
+    location          = "southeastasia"
     failover_priority = 0
   }
 }
@@ -118,16 +118,16 @@ resource "null_resource" "env_replace" {
   provisioner "local-exec" {
     command     = <<EOF
 pwd
-sed -i 's`AZ_DB_PRIMARYKEY_REPLACE`${azurerm_cosmosdb_account.db.primary_key}`' modules/module-1/resources/azure_function/data/local.settings.json
-sed -i 's`AZ_DB_ENDPOINT_REPLACE`${azurerm_cosmosdb_account.db.endpoint}`' modules/module-1/resources/azure_function/data/local.settings.json
-sed -i 's`CON_STR_REPLACE`${azurerm_storage_account.storage_account.primary_connection_string}`' modules/module-1/resources/azure_function/data/local.settings.json
-sed -i 's`CONTAINER_NAME_REPLACE`${azurerm_storage_container.storage_container.name}`' modules/module-1/resources/azure_function/data/local.settings.json
-
+sed -i '' 's|AZ_DB_PRIMARYKEY_REPLACE|${azurerm_cosmosdb_account.db.primary_key}|' modules/module-1/resources/azure_function/data/local.settings.json
+sed -i '' 's|AZ_DB_ENDPOINT_REPLACE|${azurerm_cosmosdb_account.db.endpoint}|' modules/module-1/resources/azure_function/data/local.settings.json
+sed -i '' 's|CON_STR_REPLACE|${azurerm_storage_account.storage_account.primary_connection_string}|' modules/module-1/resources/azure_function/data/local.settings.json
+sed -i '' 's|CONTAINER_NAME_REPLACE|${azurerm_storage_container.storage_container.name}|' modules/module-1/resources/azure_function/data/local.settings.json
 EOF
     interpreter = ["/bin/bash", "-c"]
   }
-  depends_on = [azurerm_cosmosdb_account.db,azurerm_storage_account.storage_account,azurerm_storage_container.storage_container]
+  depends_on = [azurerm_cosmosdb_account.db, azurerm_storage_account.storage_account, azurerm_storage_container.storage_container]
 }
+
 
 
 data "archive_file" "file_function_app" {
@@ -248,15 +248,19 @@ resource "null_resource" "file_replacement_upload" {
   provisioner "local-exec" {
     command     = <<EOF
 pwd
-sed -i 's/="\//="https:\/\/${azurerm_storage_account.storage_account.name}\.blob\.core\.windows\.net\/${azurerm_storage_container.storage_container_prod.name}\/webfiles\/build\//g' modules/module-1/resources/azure_function/react/webapp/index.html
-sed -i 's/"\/static/"https:\/\/${azurerm_storage_account.storage_account.name}\.blob\.core\.windows\.net\/${azurerm_storage_container.storage_container_prod.name}\/webfiles\/build\/static/g' modules/module-1/resources/storage_account/webfiles/build/static/js/main.adc6b28e.js
-sed -i 's/"\/static/"https:\/\/${azurerm_storage_account.storage_account.name}\.blob\.core\.windows\.net\/${azurerm_storage_container.storage_container_prod.name}\/webfiles\/build\/static/g' modules/module-1/resources/storage_account/webfiles/build/static/js/main.adc6b28e.js
-sed -i 's/n.p+"static/"https:\/\/${azurerm_storage_account.storage_account.name}\.blob\.core\.windows\.net\/${azurerm_storage_container.storage_container_prod.name}\/webfiles\/build\/static/g' modules/module-1/resources/storage_account/webfiles/build/static/js/main.adc6b28e.js
-sed -i "s,AZURE_FUNCTION_URL,https:\/\/${azurerm_function_app.function_app.default_hostname},g" modules/module-1/resources/storage_account/webfiles/build/static/js/main.adc6b28e.js
+sed -i '' 's|="\/|="https://${azurerm_storage_account.storage_account.name}.blob.core.windows.net/${azurerm_storage_container.storage_container_prod.name}/webfiles/build/|g' modules/module-1/resources/azure_function/react/webapp/index.html
+sed -i '' 's|"/static|"https://${azurerm_storage_account.storage_account.name}.blob.core.windows.net/${azurerm_storage_container.storage_container_prod.name}/webfiles/build/static|g' modules/module-1/resources/storage_account/webfiles/build/static/js/main.adc6b28e.js
+sed -i '' 's|"/static|"https://${azurerm_storage_account.storage_account.name}.blob.core.windows.net/${azurerm_storage_container.storage_container_prod.name}/webfiles/build/static|g' modules/module-1/resources/storage_account/webfiles/build/static/js/main.adc6b28e.js
+sed -i '' 's|n.p+"static|"https://${azurerm_storage_account.storage_account.name}.blob.core.windows.net/${azurerm_storage_container.storage_container_prod.name}/webfiles/build/static|g' modules/module-1/resources/storage_account/webfiles/build/static/js/main.adc6b28e.js
+sed -i '' 's|AZURE_FUNCTION_URL|https://${azurerm_function_app.function_app.default_hostname}|g' modules/module-1/resources/storage_account/webfiles/build/static/js/main.adc6b28e.js
 EOF 
     interpreter = ["/bin/bash", "-c"]
   }
-  depends_on = [data.azurerm_storage_account_blob_container_sas.storage_account_blob_container_sas,azurerm_storage_container.storage_container,azurerm_storage_account.storage_account]
+  depends_on = [
+    data.azurerm_storage_account_blob_container_sas.storage_account_blob_container_sas,
+    azurerm_storage_container.storage_container,
+    azurerm_storage_account.storage_account
+  ]
 }
 
 resource "azurerm_storage_blob" "app_files_prod" {
@@ -386,7 +390,7 @@ resource "azurerm_virtual_machine" "dev-vm" {
   network_interface_ids = [azurerm_network_interface.net_int.id]
 
 
-  vm_size = "Standard_B1s"
+  vm_size = "Standard_B2s"
 
   delete_os_disk_on_termination = true
 
@@ -490,10 +494,10 @@ depends_on = [
 ]
 }
 resource "null_resource" "clientid_replacement" {
-    provisioner "local-exec" {
+  provisioner "local-exec" {
     command     = <<EOF
-sed -i 's/REPLACE_CLIENT_ID/${azurerm_user_assigned_identity.user_id.client_id}/g' modules/module-1/resources/vm/listVM.ps1
-sed -i 's/REPLACE_RESOURCE_GROUP_NAME/${var.resource_group}/g' modules/module-1/resources/vm/listVM.ps1
+sed -i '' 's|REPLACE_CLIENT_ID|${azurerm_user_assigned_identity.user_id.client_id}|g' modules/module-1/resources/vm/listVM.ps1
+sed -i '' 's|REPLACE_RESOURCE_GROUP_NAME|${var.resource_group}|g' modules/module-1/resources/vm/listVM.ps1
 EOF
     interpreter = ["/bin/bash", "-c"]
   }
@@ -554,10 +558,10 @@ resource "azurerm_function_app" "function_app_front" {
 
 resource "null_resource" "file_replacement_vm_ip" {
   provisioner "local-exec" {
-    command     = "sed -i 's/VM_IP_ADDR/${data.azurerm_public_ip.vm_ip.ip_address}/g' modules/module-1/resources/storage_account/shared/files/.ssh/config.txt"
+    command     = "sed -i '' 's|VM_IP_ADDR|${data.azurerm_public_ip.vm_ip.ip_address}|g' modules/module-1/resources/storage_account/shared/files/.ssh/config.txt"
     interpreter = ["/bin/bash", "-c"]
   }
-  depends_on = [azurerm_virtual_machine.dev-vm,data.azurerm_public_ip.vm_ip]
+  depends_on = [azurerm_virtual_machine.dev-vm, data.azurerm_public_ip.vm_ip]
 }
 resource "azurerm_storage_blob" "config_update_prod" {
   name                   = "modules/module-1/resources/storage_account/shared/files/.ssh/config.txt"
@@ -589,4 +593,3 @@ resource "azurerm_storage_blob" "config_update_vm" {
 output "Target_URL"{
   value = "https://${azurerm_function_app.function_app_front.name}.azurewebsites.net"
 }
-    
